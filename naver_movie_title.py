@@ -9,9 +9,7 @@ html = response.text #html
 soup = BeautifulSoup(html, "html.parser")
 
 tags = soup.select(".tit3>a")
+#하나만 추출하기: tag = soup.select_one(".tit3>a").text
 
-title = list()
-for tag in tags:
-    title.append(tag.text)
-
-print(title)
+for index, tag in enumerate(tags):
+    print(str(index+1) + "위 " + tag.text)
