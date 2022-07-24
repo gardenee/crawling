@@ -1,47 +1,57 @@
 import collections
-
 import requests
-import pandas as pd
-import numpy as np
+from selenium import webdriver
+import chromedriver_autoinstaller
+from selenium.webdriver.common.by import By
+
+chrome_ver = chromedriver_autoinstaller.get_chrome_version().split('.')[0]
+
+options = webdriver.ChromeOptions()
+options.add_argument('headless')
+options.add_argument('lang=ko_KR')
+
+try:
+    driver = webdriver.Chrome(f'./{chrome_ver}/chromedriver.exe', options=options)
+    print("이미 드라이버가 설치되어있습니다.")
+except:
+    chromedriver_autoinstaller.install(True)
+    driver = webdriver.Chrome(f'./{chrome_ver}/chromedriver.exe', options=options)
+    print("설치 완료")
 
 
 ##카카오 API
 def whole_region(keyword, start_x, start_y, end_x, end_y):
-    # print(start_x,start_y,end_x,end_y)
     page_num = 1
-    # 데이터가 담길 리스트
+
     all_data_list = []
 
     while (True):
         url = 'https://dapi.kakao.com/v2/local/search/keyword.json'
-        params = {'query': keyword, 'page': page_num,
-                  'rect': f'{start_x},{start_y},{end_x},{end_y}'}
+        params = {'query': keyword, 'page': page_num, 'rect': f'{start_x},{start_y},{end_x},{end_y}'}
         headers = {"Authorization": "KakaoAK bde0ccb3c7c732a5380910cd2be9a535"}
-        ## 입력예시 -->> headers = {"Authorization": "KakaoAK f64acbasdfasdfasf70e4f52f737760657"}
-        resp = requests.get(url, params=params, headers=headers)
 
+        resp = requests.get(url, params=params, headers=headers)
         search_count = resp.json()['meta']['total_count']
 
         if search_count > 45:
             print('좌표 4등분')
             dividing_x = (start_x + end_x) / 2
             dividing_y = (start_y + end_y) / 2
-            ## 4등분 중 왼쪽 아래
+
             all_data_list.extend(whole_region(keyword, start_x, start_y, dividing_x, dividing_y))
-            ## 4등분 중 오른쪽 아래
             all_data_list.extend(whole_region(keyword, dividing_x, start_y, end_x, dividing_y))
-            ## 4등분 중 왼쪽 위
             all_data_list.extend(whole_region(keyword, start_x, dividing_y, dividing_x, end_y))
-            ## 4등분 중 오른쪽 위
             all_data_list.extend(whole_region(keyword, dividing_x, dividing_y, end_x, end_y))
+
             return all_data_list
 
         else:
             if resp.json()['meta']['is_end']:
+                print('데이터추가')
                 all_data_list.extend(resp.json()['documents'])
+
                 return all_data_list
 
-            # 아니면 다음 페이지로 넘어가서 데이터 저장
             else:
                 print('다음페이지')
                 page_num += 1
@@ -49,10 +59,8 @@ def whole_region(keyword, start_x, start_y, end_x, end_y):
 
 
 def overlapped_data(keyword, start_x, start_y, next_x, next_y, num_x, num_y):
-    # 최종 데이터가 담길 리스트
     overlapped_result = []
 
-    # 지도를 사각형으로 나누면서 데이터 받아옴
     for i in range(1, num_x + 1):  ## 1,10
         end_x = start_x + next_x
         initial_start_y = start_y
@@ -66,8 +74,8 @@ def overlapped_data(keyword, start_x, start_y, next_x, next_y, num_x, num_y):
     return overlapped_result
 
 
-# 시작 x 좌표 및 증가값
-keyword = '음식점'
+# 시작 좌표 및 증가값
+keyword = '아시아 음식'
 start_x = 126.8991376
 start_y = 37.4393374
 next_x = 0.01
@@ -79,30 +87,34 @@ overlapped_result = overlapped_data(keyword, start_x, start_y, next_x, next_y, n
 
 # 최종 데이터가 담긴 리스트 중복값 제거
 results = list(map(dict, collections.OrderedDict.fromkeys(tuple(sorted(d.items())) for d in overlapped_result)))
-X = []
-Y = []
-stores = []
-road_address = []
-place_url = []
-ID = []
-menu_category = []
-rating = []
-opening_hours = []
+cnt = 0
 
 for place in results:
     if "관악구" in place['road_address_name']:
-        X.append(float(place['x']))
-        Y.append(float(place['y']))
-        stores.append(place['place_name'])
-        road_address.append(place['road_address_name'])
-        place_url.append(place['place_url'])
-        ID.append(place['id'])
+        cnt += 1
 
+        X = float(place['x'])
+        Y = float(place['y'])
+        store_name = place['place_name']
+        road_address = place['road_address_name']
+        place_url = place['place_url']
+        ID = place['id']
+        full_category = place['category_name'].replace('>', '').split()
 
+        if len(full_category) <= 2:
+            category = keyword
+        else:
+            category = full_category[2]
 
-        ar = np.array([ID, stores, X, Y, road_address, place_url]).T
-        df = pd.DataFrame(ar, columns=['ID', 'stores', 'X', 'Y', 'road_address', 'place_url'])
-        print("가게명", place['place_name'], "주소", place['road_address_name'])
+        driver.get(place_url)
+        driver.implicitly_wait(5)
 
-print('total_reuslt_number = ', len(df))
-print(df)
+        try:
+            rating = driver.find_element(By.CSS_SELECTOR, ".link_evaluation>span").text
+        except:
+            rating = 0
+        #opening_hour = driver.find_element(By.CSS_SELECTOR, ".list_operation").text
+
+print('total_result_number = ', cnt)
+
+driver.quit()
