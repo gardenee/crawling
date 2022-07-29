@@ -101,19 +101,24 @@ for place in results:
         ID = place['id']
         full_category = place['category_name'].replace('>', '').split()
 
-        if len(full_category) <= 2:
-            category = keyword
-        else:
-            category = full_category[2]
+        if len(full_category) >=1 and full_category[1] != "간식":
+            if len(full_category) <= 2:
+                category = full_category[1]
+            else:
+                category = full_category[2]
 
-        driver.get(place_url)
-        driver.implicitly_wait(5)
+            driver.get(place_url)
+            driver.implicitly_wait(5)
 
-        try:
-            rating = driver.find_element(By.CSS_SELECTOR, ".link_evaluation>span").text
-        except:
-            rating = 0
-        #opening_hour = driver.find_element(By.CSS_SELECTOR, ".list_operation").text
+            try:
+                rating = driver.find_element(By.CSS_SELECTOR, ".link_evaluation>span").text
+            except:
+                rating = 0
+            #opening_hour = driver.find_element(By.CSS_SELECTOR, ".list_operation").text
+
+            if float(rating) > 0:
+                print("가게명", place['place_name'], "주소", place['road_address_name'], "카테고리", category, "별점", rating)
+
 
 print('total_result_number = ', cnt)
 
