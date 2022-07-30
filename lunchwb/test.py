@@ -3,7 +3,10 @@ import requests
 from selenium import webdriver
 import chromedriver_autoinstaller
 from selenium.webdriver.common.by import By
+import cx_Oracle
 
+
+## 셀레니움 크롬 연결
 chrome_ver = chromedriver_autoinstaller.get_chrome_version().split('.')[0]
 
 options = webdriver.ChromeOptions()
@@ -18,10 +21,26 @@ except:
     driver = webdriver.Chrome(f'./{chrome_ver}/chromedriver.exe', options=options)
     print("설치 완료")
 
+
 ## db 연결
 conn = cx_Oracle.connect("lunchwb", "lunchwb", "localhost:1521/xe")
 
-##카카오 API
+
+## 카테고리 정보 저장할 사전
+category_dict = collections.OrderedDict()
+category_dict['뷔페'] = ['해산물뷔페', '한식뷔페', '고기뷔페', '뷔페']
+category_dict['아시아음식'] = ['터키음식', '동남아음식', '인도음식', '아시아음식']
+category_dict['양식'] = ['스테이크,립', '햄버거', '피자', '해산물', '이탈리안', '멕시칸,브라질', '양식']
+category_dict['일식'] = ['일본식라면', '일식집', '돈까스,우동', '참치회', '초밥,롤', '일식']
+category_dict['한식'] = ['냉면', '국밥', '순대', '수제비', '죽', '설렁탕', '감자탕', '사철탕,영양탕', '곰탕', '두부전문점', '해물,생선', '해장국', '찌개,전골', '주먹밥', '육류,고기', '국수', '한정식', '쌈밥', '한식']
+category_dict['패스트푸드'] = ['패스트푸드']
+category_dict['패밀리레스토랑'] = ['패밀리레스토랑']
+category_dict['치킨'] = ['치킨']
+category_dict['분식'] = ['분식']
+category_dict['중식'] = ['중식']
+
+
+## 카카오 API
 def whole_region(keyword, start_x, start_y, end_x, end_y):
     page_num = 1
 
@@ -77,7 +96,7 @@ def overlapped_data(keyword, start_x, start_y, next_x, next_y, num_x, num_y):
 
 
 # 시작 좌표 및 증가값
-keyword = '음식점'
+keyword = '한식'
 start_x = 126.8991376
 start_y = 37.4393374
 next_x = 0.01
@@ -91,9 +110,12 @@ overlapped_result = overlapped_data(keyword, start_x, start_y, next_x, next_y, n
 results = list(map(dict, collections.OrderedDict.fromkeys(tuple(sorted(d.items())) for d in overlapped_result)))
 cnt = 0
 
+print(category_dict)
+
 for place in results:
     if "관악구" in place['road_address_name']:
         cnt += 1
+        print(place)
 
         X = float(place['x'])
         Y = float(place['y'])
@@ -102,8 +124,8 @@ for place in results:
         place_url = place['place_url']
         ID = place['id']
         full_category = place['category_name'].replace('>', '').split()
-        opening_hour = [정보없음] * 8
-        break_time = [정보없음] * 7
+        opening_hour = ['정보없음'] * 8
+        break_time = ['정보없음'] * 7
 
         if len(full_category) >= 2 and full_category[1] != "간식" and full_category[1] != "술집":
             category_1st = full_category[1]
@@ -119,11 +141,9 @@ for place in results:
             try:
                 rating = driver.find_element(By.CSS_SELECTOR, ".link_evaluation>span").text
             except:
+                print(store_name, "별점 못 불러온 듯ㅠ")
                 rating = 0
-            #opening_hour = driver.find_element(By.CSS_SELECTOR, ".list_operation").text
 
-            if float(rating) > 0:
-                print("가게명", place['place_name'], "주소", place['road_address_name'], "카테고리", category, "별점", rating)
 
 
 print('total_result_number = ', cnt)
