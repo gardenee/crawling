@@ -120,12 +120,14 @@ for place in results:
         X = float(place['x'])
         Y = float(place['y'])
         store_name = place['place_name']
+        address_name = place['address_name']
         road_address = place['road_address_name']
         place_url = place['place_url']
         ID = place['id']
         full_category = place['category_name'].replace('>', '').split()
         opening_hour = ['정보없음'] * 8
         break_time = ['정보없음'] * 7
+        rating = 0
 
         if len(full_category) >= 2 and full_category[1] != "간식" and full_category[1] != "술집":
             category_1st = full_category[1]
@@ -142,7 +144,7 @@ for place in results:
                 rating = driver.find_element(By.CSS_SELECTOR, ".link_evaluation>span").text
             except:
                 print(store_name, "별점 못 불러온 듯ㅠ")
-                rating = 0
+
 
 
 
