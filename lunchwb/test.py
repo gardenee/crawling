@@ -18,6 +18,8 @@ except:
     driver = webdriver.Chrome(f'./{chrome_ver}/chromedriver.exe', options=options)
     print("설치 완료")
 
+## db 연결
+conn = cx_Oracle.connect("lunchwb", "lunchwb", "localhost:1521/xe")
 
 ##카카오 API
 def whole_region(keyword, start_x, start_y, end_x, end_y):
@@ -75,13 +77,13 @@ def overlapped_data(keyword, start_x, start_y, next_x, next_y, num_x, num_y):
 
 
 # 시작 좌표 및 증가값
-keyword = '아시아 음식'
+keyword = '음식점'
 start_x = 126.8991376
 start_y = 37.4393374
 next_x = 0.01
 next_y = 0.01
-num_x = 10
-num_y = 6
+num_x = 11
+num_y = 7
 
 overlapped_result = overlapped_data(keyword, start_x, start_y, next_x, next_y, num_x, num_y)
 
@@ -100,12 +102,16 @@ for place in results:
         place_url = place['place_url']
         ID = place['id']
         full_category = place['category_name'].replace('>', '').split()
+        opening_hour = [정보없음] * 8
+        break_time = [정보없음] * 7
 
-        if len(full_category) >=1 and full_category[1] != "간식":
+        if len(full_category) >= 2 and full_category[1] != "간식" and full_category[1] != "술집":
+            category_1st = full_category[1]
+
             if len(full_category) <= 2:
-                category = full_category[1]
+                category_2nd = full_category[1]
             else:
-                category = full_category[2]
+                category_2nd = full_category[2]
 
             driver.get(place_url)
             driver.implicitly_wait(5)
