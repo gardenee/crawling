@@ -47,4 +47,3 @@ for idx, cate in enumerate(list(category_dict.keys())):
 
     for cate_2 in category_dict[cate]:
         insert_2nd(idx+1, cate_2)
-
