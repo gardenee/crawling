@@ -4,7 +4,7 @@ from selenium.webdriver.common.by import By
 
 
 chrome_ver = chromedriver_autoinstaller.get_chrome_version().split('.')[0]
-ID = 1226967920
+ID = 10957180
 
 menu_category = []
 rating = []
@@ -25,19 +25,13 @@ except:
 driver.get(url="http://place.map.kakao.com/" + str(ID))
 driver.implicitly_wait(5)
 
-menu_cate = driver.find_element(By.CSS_SELECTOR, ".txt_location").text
 
 try:
-    rating = driver.find_element(By.CSS_SELECTOR, ".link_evaluation>span").text
+    opening = driver.find_element(By.CSS_SELECTOR, ".list_operation").text
 except:
-    rating = ""
+    opening = ""
 
-try:
-    opening_hour = driver.find_element(By.CSS_SELECTOR, ".list_operation").text
-except:
-    opening_hour = ""
-
-if "더보기" in opening_hour:
+if "더보기" in opening:
     try:
         more_btn = driver.find_element(By.CSS_SELECTOR, ".btn_more").click()
         driver.implicitly_wait(3)
@@ -45,17 +39,15 @@ if "더보기" in opening_hour:
         print("클릭 오류")
 
     try:
-        opening_hour = driver.find_element(By.CSS_SELECTOR, ".fold_floor").text
+        opening = driver.find_element(By.CSS_SELECTOR, ".fold_floor").text
     except:
         print("오류다다")
 
 
-lst = driver.find_elements(By.CSS_SELECTOR, ".loss_word")
-for l in lst:
-    print(l.text)
+opening_hour = ['정보없음'] * 8
+break_time = ['정보없음'] * 7
 
-print(menu_cate)
-print(rating)
-print(opening_hour)
-
+lst = opening.split("\n")
+lst.remove("영업시간")
+print(lst)
 driver.quit()

@@ -23,13 +23,13 @@ except:
 
 
 ## store 테이블 추가 함수
-def insert_store(cate_2nd, store_name, store_x, store_y, store_road, store_old, store_opening):
+def insert_store(cate_2nd, store_name, store_x, store_y, store_road, store_old, store_opening, break_time):
     conn = cx_Oracle.connect("lunchwb", "lunchwb", "localhost:1521/xe")
     cs = conn.cursor()
 
-    sql = "insert into movie values (seq_store_no.nextval, :cate_2nd, :store_name, :store_x, :store_y, :store_road, :store_old, store:opening, 0)"
+    sql = "INSERT INTO store VALUES(seq_store_no.nextval, :cate_2nd, :store_name, :store_x, :store_y, :store_road, :store_old, :store_opening, :break_time, :visit)"
 
-    cs.execute(sql, cate_2nd=cate_2nd, store_name=store_name, store_x=store_x, store_y=store_y, store_road=store_road, store_old=store_old, store_opening=store_opening)
+    cs.execute(sql, cate_2nd=cate_2nd, store_name=store_name, store_x=store_x, store_y=store_y, store_road=store_road, store_old=store_old, store_opening=store_opening, break_time=break_time, visit=0)
     conn.commit()
 
     cs.close()
@@ -41,7 +41,7 @@ def insert_bujang(store_no):
     conn = cx_Oracle.connect("lunchwb", "lunchwb", "localhost:1521/xe")
     cs = conn.cursor()
 
-    sql = "insert into rating_bujang values (store_no, 0, 0, 0)"
+    sql = "INSERT INTO rating_bujang VALUES(:store_no, 0, 0, 0)"
 
     cs.execute(sql, store_no=store_no)
     conn.commit()
@@ -55,7 +55,7 @@ def insert_others(store_no, rating_kakao):
     conn = cx_Oracle.connect("lunchwb", "lunchwb", "localhost:1521/xe")
     cs = conn.cursor()
 
-    sql = "insert into rating_others values (:store_no, 0, :rating_kakao, 0)"
+    sql = "INSERT INTO rating_others VALUES(:store_no, 0, :rating_kakao, 0)"
 
     cs.execute(sql, store_no=store_no, rating_kakao=rating_kakao)
     conn.commit()
@@ -64,8 +64,20 @@ def insert_others(store_no, rating_kakao):
     conn.close()
 
 
+## 배열 문자열로 저장
+def arr_change(lst):
+    rtn = ""
+
+    for l in lst:
+        rtn += str(l) + "/"
+
+    return rtn[:-1]
+
+
 ## 카테고리 정보 저장할 사전
-category_dict = collections.OrderedDict()
+category_keys = ['뷔페', '아시아음식', '양식', '일식', '한식', '패스트푸드', '패밀리레스토랑', '치킨', '분식', '중식']
+category_sum = [1, 5, 9, 16, 22, 41, 42, 43, 44, 45]
+category_dict = dict()
 category_dict['뷔페'] = ['해산물뷔페', '한식뷔페', '고기뷔페', '뷔페']
 category_dict['아시아음식'] = ['터키음식', '동남아음식', '인도음식', '아시아음식']
 category_dict['양식'] = ['스테이크,립', '햄버거', '피자', '해산물', '이탈리안', '멕시칸,브라질', '양식']
@@ -76,6 +88,10 @@ category_dict['패밀리레스토랑'] = ['패밀리레스토랑']
 category_dict['치킨'] = ['치킨']
 category_dict['분식'] = ['분식']
 category_dict['중식'] = ['중식']
+
+
+## 요일 참조용 리스트
+ref_day = ['월', '화', '수', '목', '금', '토', '일']
 
 
 ## 카카오 API
@@ -147,6 +163,7 @@ overlapped_result = overlapped_data(keyword, start_x, start_y, next_x, next_y, n
 
 # 최종 데이터가 담긴 리스트 중복값 제거
 results = list(map(dict, collections.OrderedDict.fromkeys(tuple(sorted(d.items())) for d in overlapped_result)))
+print("==========데이터 일단 가져옴==========================================================")
 
 with open("메뉴.txt", "w") as file:
     file.write("\n")
@@ -156,6 +173,9 @@ with open("별점.txt", "w") as file:
 
 with open("영업시간.txt", "w") as file:
     file.write("저장 안된 영업시간 목록\n")
+
+with open("크롤링데이터.txt", "w") as file:
+    file.write("\n")
 
 cnt = 0
 
@@ -170,45 +190,144 @@ for place in results:
         place_url = place['place_url']
         ID = place['id']
         full_category = place['category_name'].replace('>', '').split()
-        opening_hour = ['정보없음'] * 8
+        opening_hour = ['정보없음'] * 7
         break_time = ['정보없음'] * 7
         rating = ""
 
         ## 카테고리 정리하기
-        if len(full_category) >= 2 and full_category[1] in list(category_dict.keys()):
-            category_1st = list(category_dict.keys()).index(full_category[1])+1
+        if len(full_category) >= 2 and full_category[1] in list(category_keys):
+            with open("크롤링데이터.txt", "a") as file:
+                file.write(str(cnt + 1) + " {")
+                for key in place.keys():
+                    file.write(str(key) + ": " + str(place[key]) + "  ")
+                file.write("}\n")
 
-            if len(full_category) <= 2:
-                category_2nd = category_1st
+            if len(full_category) == 2:
+                category_2nd = category_keys.index(full_category[1])+1
             else:
-                category_2nd = category_dict[full_category[1]].index(full_category[2])+1
-
-
+                if full_category[2] in category_dict[full_category[1]]:
+                    category_2nd = category_sum[category_keys.index(full_category[1])] + category_dict[full_category[1]].index(full_category[2]) + 1
+                else:
+                    category_2nd = category_keys.index(full_category[1])+1
+"""
+            if cnt <= 193: ## break_point
+                cnt += 1
+                continue
+"""
             driver.get(place_url)
             driver.implicitly_wait(5)
 
-
             try:
-                opening_hour = driver.find_element(By.CSS_SELECTOR, ".list_operation").text
+                opening = driver.find_element(By.CSS_SELECTOR, ".list_operation").text.split()
             except:
-                opening_hour = ""
+                print(store_name, "정보가 없는건지 못불러온건지")
+                opening = []
 
-            if "더보기" in opening_hour:
+            if "더보기" in opening:
                 try:
                     more_btn = driver.find_element(By.CSS_SELECTOR, ".btn_more").click()
                     driver.implicitly_wait(3)
                 except:
                     print("클릭 오류")
+                    opening = []
 
                 try:
-                    opening_hour = driver.find_element(By.CSS_SELECTOR, ".fold_floor").text
+                    opening = driver.find_element(By.CSS_SELECTOR, ".fold_floor").text.split()
                 except:
                     print("오류다")
+                    opening = []
+
+            if opening:
+                if '영업시간' in opening:
+                    opening.remove('영업시간')
+                if '닫기' in opening:
+                    opening.remove('닫기')
+
+                temp = [False] * 7
+                time = ""
+
+                n = 0
+                for m in opening:
+                    if n == 0:
+                        if m == '매일':
+                            temp = [True] * 7
+                        elif '~' in m and m[0] in ref_day:
+                            start = ref_day.index(m[0])
+                            end = ref_day.index(m[2])
+                            for i in range(start, end + 1):
+                                temp[i] = True
+                        elif ',' in m and m[0] in ref_day:
+                            curr = m.split(",")
+                            for c in curr:
+                                idx = ref_day.index(c)
+                                temp[idx] = True
+                        elif m in ref_day:
+                            idx = ref_day.index(m)
+                            temp[idx] = True
+                        else:
+                            continue
+                        n += 1
+
+                    elif n == 1:
+                        if ":" in m:
+                            time += m
+                            n += 1
+                        elif m == "브레이크타임":
+                            n = 4
+                        else:
+                            n = 0
+
+                    elif n == 2:
+                        if m == "~":
+                            time += m
+                            n += 1
+                        else:
+                            n = 0
+
+                    elif n == 3:
+                        if ":" in m:
+                            if int(time[:2]) > int(m[:2]):
+                                m = str(int(m[:2]) + 24) + m[2:]
+                            time += m
+                            for i in range(7):
+                                if temp[i]:
+                                    opening_hour[i] = time
+                            temp = [False] * 7
+                            time = ""
+                            n = 0
+
+                    elif n == 4:
+                        time += m
+                        n += 1
+
+                    elif n == 5:
+                        time += m
+                        n += 1
+
+                    elif n == 6:
+                        time += m
+                        for i in range(7):
+                            if temp[i]:
+                                break_time[i] = time
+                        temp = [False] * 7
+                        time = ""
+                        n = 0
+
+                if '정보없음' in opening_hour and opening_hour.count('정보없음') != 7:
+                    for i in range(7):
+                        if opening_hour[i] == '정보없음':
+                            opening_hour[i] = '휴무일'
+                            break_time[i] = '휴무일'
+
+
+            if not opening_hour:
+                with open("영업시간.txt", "a") as file:
+                    file.write(cnt+1, store_name, ID)
 
 
             ## db에 추가
             cnt += 1
-            insert_store(category_2nd, store_name, X, Y, road_address, address_name, )
+            insert_store(category_2nd, store_name, X, Y, road_address, address_name, arr_change(opening_hour), arr_change(break_time))
             insert_bujang(cnt)
 
 
