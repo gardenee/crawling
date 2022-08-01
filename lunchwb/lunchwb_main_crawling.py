@@ -188,7 +188,22 @@ for place in results:
             driver.implicitly_wait(5)
 
 
-            try: 하 영업시간
+            try:
+                opening_hour = driver.find_element(By.CSS_SELECTOR, ".list_operation").text
+            except:
+                opening_hour = ""
+
+            if "더보기" in opening_hour:
+                try:
+                    more_btn = driver.find_element(By.CSS_SELECTOR, ".btn_more").click()
+                    driver.implicitly_wait(3)
+                except:
+                    print("클릭 오류")
+
+                try:
+                    opening_hour = driver.find_element(By.CSS_SELECTOR, ".fold_floor").text
+                except:
+                    print("오류다")
 
 
             ## db에 추가

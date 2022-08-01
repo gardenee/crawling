@@ -4,7 +4,7 @@ from selenium.webdriver.common.by import By
 
 
 chrome_ver = chromedriver_autoinstaller.get_chrome_version().split('.')[0]
-ID = 530970197
+ID = 1226967920
 
 menu_category = []
 rating = []
@@ -40,10 +40,9 @@ except:
 if "더보기" in opening_hour:
     try:
         more_btn = driver.find_element(By.CSS_SELECTOR, ".btn_more").click()
-        time.sleep(3)
-        print("눌렀다")
+        driver.implicitly_wait(3)
     except:
-        print("안눌렸다")
+        print("클릭 오류")
 
     try:
         opening_hour = driver.find_element(By.CSS_SELECTOR, ".fold_floor").text
@@ -51,6 +50,9 @@ if "더보기" in opening_hour:
         print("오류다다")
 
 
+lst = driver.find_elements(By.CSS_SELECTOR, ".loss_word")
+for l in lst:
+    print(l.text)
 
 print(menu_cate)
 print(rating)
