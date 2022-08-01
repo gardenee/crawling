@@ -22,8 +22,46 @@ except:
     print("설치 완료")
 
 
-## db 연결
-conn = cx_Oracle.connect("lunchwb", "lunchwb", "localhost:1521/xe")
+## store 테이블 추가 함수
+def insert_store(cate_2nd, store_name, store_x, store_y, store_road, store_old, store_opening):
+    conn = cx_Oracle.connect("lunchwb", "lunchwb", "localhost:1521/xe")
+    cs = conn.cursor()
+
+    sql = "insert into movie values (seq_store_no.nextval, :cate_2nd, :store_name, :store_x, :store_y, :store_road, :store_old, store:opening, 0)"
+
+    cs.execute(sql, cate_2nd=cate_2nd, store_name=store_name, store_x=store_x, store_y=store_y, store_road=store_road, store_old=store_old, store_opening=store_opening)
+    conn.commit()
+
+    cs.close()
+    conn.close()
+
+
+## rating_bujang 테이블에 추가
+def insert_bujang(store_no):
+    conn = cx_Oracle.connect("lunchwb", "lunchwb", "localhost:1521/xe")
+    cs = conn.cursor()
+
+    sql = "insert into rating_bujang values (store_no, 0, 0, 0)"
+
+    cs.execute(sql, store_no=store_no)
+    conn.commit()
+
+    cs.close()
+    conn.close()
+
+
+## rating_others 테이블에 추가
+def insert_others(store_no, rating_kakao):
+    conn = cx_Oracle.connect("lunchwb", "lunchwb", "localhost:1521/xe")
+    cs = conn.cursor()
+
+    sql = "insert into rating_others values (:store_no, 0, :rating_kakao, 0)"
+
+    cs.execute(sql, store_no=store_no, rating_kakao=rating_kakao)
+    conn.commit()
+
+    cs.close()
+    conn.close()
 
 
 ## 카테고리 정보 저장할 사전
@@ -108,15 +146,21 @@ overlapped_result = overlapped_data(keyword, start_x, start_y, next_x, next_y, n
 
 # 최종 데이터가 담긴 리스트 중복값 제거
 results = list(map(dict, collections.OrderedDict.fromkeys(tuple(sorted(d.items())) for d in overlapped_result)))
+
+with open("메뉴.txt", "w") as file:
+    file.write("메뉴목록\n")
+
+with open("별점.txt", "w") as file:
+    file.write("저장 안된 별점 목록\n")
+
+with open("영업시간.txt", "w") as file:
+    file.write("저장 안된 영업시간 목록\n")
+
 cnt = 0
 
-print(category_dict)
 
 for place in results:
     if "관악구" in place['road_address_name']:
-        cnt += 1
-        print(place)
-
         X = float(place['x'])
         Y = float(place['y'])
         store_name = place['place_name']
@@ -127,23 +171,34 @@ for place in results:
         full_category = place['category_name'].replace('>', '').split()
         opening_hour = ['정보없음'] * 8
         break_time = ['정보없음'] * 7
-        rating = 0
+        rating = ""
 
-        if len(full_category) >= 2 and full_category[1] != "간식" and full_category[1] != "술집":
-            category_1st = full_category[1]
+        if len(full_category) >= 2 and full_category[1] in list(category_dict.keys()):
+            category_1st = list(category_dict.keys()).index(full_category[1])+1
 
             if len(full_category) <= 2:
-                category_2nd = full_category[1]
+                category_2nd = category_1st
             else:
-                category_2nd = full_category[2]
+                category_2nd = category_dict[full_category[1]].index(full_category[2])+1
+
+
+            try: 하 영업시간
 
             driver.get(place_url)
             driver.implicitly_wait(5)
 
+            cnt += 1
+            insert_store(category_2nd, store_name, X, Y, road_address, address_name, )
+            insert_bujang(cnt)
+
             try:
                 rating = driver.find_element(By.CSS_SELECTOR, ".link_evaluation>span").text
             except:
-                print(store_name, "별점 못 불러온 듯ㅠ")
+                with open("별점.txt", a):
+                    file.write(str(cnt) + " " + store_name + " " + str(ID))
+
+            insert_others(cnt, rating)
+
 
 
 
