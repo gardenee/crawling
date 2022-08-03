@@ -128,12 +128,30 @@ def select_2nd(cate_name):
     return result
 
 
+## menu_1st_cate 찾아오기
+def select_1st(cate_name):
+    conn = cx_Oracle.connect("lunchwb", "lunchwb", "localhost:1521/xe")
+    cs = conn.cursor()
+
+    sql = "SELECT menu_1st_cate_no FROM food_1st_category WHERE menu_1st_cate_name=:cate_name"
+
+    rs = cs.execute(sql, cate_name=cate_name)
+
+    for r in rs:
+        result = r[0]
+
+    cs.close()
+    conn.close()
+
+    return result
+
+
 ## 배열 문자열로 저장
 def arr_change(lst):
     rtn = ""
 
     for l in lst:
-        rtn += str(l) + "/"
+        rtn += str(l) + " "
 
     return rtn[:-1]
 
@@ -166,7 +184,7 @@ def opening_search(driver):
     try:
         opening = driver.find_element(By.CSS_SELECTOR, ".list_operation").text.split()
     except:
-        print(store_name, "정보가 없는건지 못불러온건지")
+        print(store_name, "영업시간 정보가 없음")
         opening = []
 
     if "더보기" in opening:
@@ -179,7 +197,7 @@ def opening_search(driver):
         try:
             opening = driver.find_element(By.CSS_SELECTOR, ".fold_floor").text.split()
         except:
-            print("오류다")
+            print("세부 시간 불러오기 오류")
             opening = []
 
     if opening:
@@ -342,9 +360,11 @@ overlapped_result = overlapped_data(keyword, start_x, start_y, next_x, next_y, n
 # 최종 데이터가 담긴 리스트 중복값 제거
 results = list(map(dict, collections.OrderedDict.fromkeys(tuple(sorted(d.items())) for d in overlapped_result)))
 print("==========데이터 일단 가져옴==========================================================")
-print(len(results), "추리기 전엔")
+print("추리기 전 데이터 수:", len(results))
 
 """
+# txt 저장할 내용들 
+
 with open("메뉴.txt", "w") as file:
     file.write("\n")
 
@@ -375,11 +395,14 @@ for place in results:
 
         ## 카테고리 정리하기
         if len(full_category) >= 2 and full_category[1] in list(category_keys):
-            """with open("크롤링데이터.txt", "a") as file:
+            """
+            # 혹시 모르니 데이터 세이브
+            with open("크롤링데이터.txt", "a") as file:
                 file.write(str(cnt + 1) + " {")
                 for key in place.keys():
                     file.write(str(key) + ": " + str(place[key]) + "  ")
                 file.write("}\n")
+            """
 
             if len(full_category) == 2:
                 category_2nd = select_2nd(full_category[1])
@@ -387,13 +410,17 @@ for place in results:
                 if full_category[2] in category_dict[full_category[1]]:
                     category_2nd = select_2nd(full_category[2])
                 else:
-                    category_2nd = select_2nd(full_category[1])"""
+                    category_2nd = select_2nd(full_category[1])
 
             print(store_name, cnt+1)
-            if cnt < 3300: ## break_point
+
+            """
+            ## breakpoint
+            if cnt < 3300: 
                 cnt += 1
                 continue
-            
+            """
+
             driver.get(place_url)
             driver.implicitly_wait(5)
 
@@ -401,17 +428,19 @@ for place in results:
 
             ## db에 추가
             cnt += 1
-            """
+
             insert_store(category_2nd, store_name, X, Y, road_address, address_name, arr_change(opening_hour), arr_change(break_time))
-            insert_bujang(cnt)"""
+            insert_bujang(cnt)
 
             store_no = select_store_no(store_name, road_address)
             if store_no == 0:
                 continue
 
+            """
+            # 영업시간 못가져온 경우 추가
             if opening_hour != ['정보없음'] * 7:
                 update_store(store_no, arr_change(opening_hour), arr_change(break_time))
-
+            """
 
             ## 별점 가져오기 + db에 추가
             try:
@@ -421,19 +450,24 @@ for place in results:
                 with open("별점.txt", "a") as file:
                     file.write(str(cnt) + " " + store_name + " " + str(ID) + "\n")
 
+            insert_others(store_no, rating)
+
+            """
+            # 별점 못가져온 경우 추가
             if rating != 0:
                 update_others(store_no, rating)
+            """
 
-
+            """
             ## 메뉴 목록 긁어오기
             try:
                 lst = driver.find_elements(By.CSS_SELECTOR, ".loss_word")
                 with open("메뉴.txt", "a") as file:
                     for l in lst:
-                        file.write(l.text + "\n")
+                        file.write(str(select_1st(full_category[1])) + " " + str(category_2nd) + l.text + "\n")
             except:
                 print("메뉴 못불러옴")
-
+            """
 
 print('total_result_number = ', cnt)
 
