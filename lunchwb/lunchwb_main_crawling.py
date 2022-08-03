@@ -214,30 +214,37 @@ def opening_search(driver):
             if n == 0:
                 if m == '매일':
                     temp = [True] * 7
+
                 elif '~' in m and m[0] in ref_day:
                     start = ref_day.index(m[0])
                     end = ref_day.index(m[2])
                     for i in range(start, end + 1):
                         temp[i] = True
+
                 elif ',' in m and (not '공휴일' in m) and (not '브레이크' in m) and m[0] in ref_day:
                     curr = m.split(",")
                     for c in curr:
                         idx = ref_day.index(c[0])
                         temp[idx] = True
+
                 elif m[0] in ref_day:
                     idx = ref_day.index(m[0])
                     temp[idx] = True
+
                 else:
                     temp = [False] * 7
                     continue
+
                 n += 1
 
             elif n == 1:
                 if ":" in m:
                     time += m
                     n += 1
+
                 elif m == "브레이크타임":
                     n = 4
+
                 else:
                     n = 0
 
@@ -245,6 +252,7 @@ def opening_search(driver):
                 if m == "~":
                     time += m
                     n += 1
+
                 else:
                     n = 0
 
@@ -253,9 +261,11 @@ def opening_search(driver):
                     if int(time[:2]) > int(m[:2]):
                         m = str(int(m[:2]) + 24) + m[2:]
                     time += m
+
                     for i in range(7):
                         if temp[i]:
                             opening_hour[i] = time
+
                     temp = [False] * 7
                     time = ""
                     n = 0
@@ -270,9 +280,11 @@ def opening_search(driver):
 
             elif n == 6:
                 time += m
+
                 for i in range(7):
                     if temp[i]:
                         break_time[i] = time
+
                 temp = [False] * 7
                 time = ""
                 n = 0
@@ -282,10 +294,6 @@ def opening_search(driver):
                 if opening_hour[i] == '정보없음':
                     opening_hour[i] = '휴무일'
                     break_time[i] = '휴무일'
-
-    if not opening_hour:
-        with open("영업시간.txt", "a") as file:
-            file.write(cnt + 1, store_name, ID)
 
     return opening_hour, break_time
 
@@ -370,9 +378,6 @@ with open("메뉴.txt", "w") as file:
 
 with open("별점.txt", "w") as file:
     file.write("저장 안된 별점 목록\n")
-
-with open("영업시간.txt", "w") as file:
-    file.write("저장 안된 영업시간 목록\n")
 
 with open("크롤링데이터.txt", "w") as file:
     file.write("\n")
