@@ -64,6 +64,24 @@ def insert_others(store_no, rating_kakao):
     conn.close()
 
 
+## menu_2nd_cate 찾아오기
+def select_2nd(cate_name):
+    conn = cx_Oracle.connect("lunchwb", "lunchwb", "localhost:1521/xe")
+    cs = conn.cursor()
+
+    sql = "SELECT menu_2nd_cate_no FROM food_2nd_category WHERE menu_2nd_cate_name=:cate_name"
+
+    rs = cs.execute(sql, cate_name=cate_name)
+
+    for r in rs:
+        result = r[0]
+
+    cs.close()
+    conn.close()
+
+    return result
+
+
 ## 배열 문자열로 저장
 def arr_change(lst):
     rtn = ""
@@ -76,7 +94,7 @@ def arr_change(lst):
 
 ## 카테고리 정보 저장할 사전
 category_keys = ['뷔페', '아시아음식', '양식', '일식', '한식', '패스트푸드', '패밀리레스토랑', '치킨', '분식', '중식']
-category_sum = [1, 5, 9, 16, 22, 41, 42, 43, 44, 45]
+
 category_dict = dict()
 category_dict['뷔페'] = ['해산물뷔페', '한식뷔페', '고기뷔페', '뷔페']
 category_dict['아시아음식'] = ['터키음식', '동남아음식', '인도음식', '아시아음식']
@@ -92,6 +110,120 @@ category_dict['중식'] = ['중식']
 
 ## 요일 참조용 리스트
 ref_day = ['월', '화', '수', '목', '금', '토', '일']
+
+
+## 영업시간 + 브레이크타임 찾기 함수
+def opening_search(driver):
+    opening_hour = ['정보없음'] * 7
+    break_time = ['정보없음'] * 7
+
+    try:
+        opening = driver.find_element(By.CSS_SELECTOR, ".list_operation").text.split()
+    except:
+        print(store_name, "정보가 없는건지 못불러온건지")
+        opening = []
+
+    if "더보기" in opening:
+        try:
+            more_btn = driver.find_element(By.CSS_SELECTOR, ".btn_more").click()
+            driver.implicitly_wait(3)
+        except:
+            print("클릭 오류")
+
+        try:
+            opening = driver.find_element(By.CSS_SELECTOR, ".fold_floor").text.split()
+        except:
+            print("오류다")
+            opening = []
+
+    if opening:
+        if '영업시간' in opening:
+            opening.remove('영업시간')
+        if '닫기' in opening:
+            opening.remove('닫기')
+
+        temp = [False] * 7
+        time = ""
+
+        n = 0
+        for m in opening:
+            if n == 0:
+                if m == '매일':
+                    temp = [True] * 7
+                elif '~' in m and m[0] in ref_day:
+                    start = ref_day.index(m[0])
+                    end = ref_day.index(m[2])
+                    for i in range(start, end + 1):
+                        temp[i] = True
+                elif ',' in m and m[0] in ref_day:
+                    curr = m.split(",")
+                    for c in curr:
+                        idx = ref_day.index(c[0])
+                        temp[idx] = True
+                elif m[0] in ref_day:
+                    idx = ref_day.index(m[0])
+                    temp[idx] = True
+                else:
+                    temp = [False] * 7
+                    continue
+                n += 1
+
+            elif n == 1:
+                if ":" in m:
+                    time += m
+                    n += 1
+                elif m == "브레이크타임":
+                    n = 4
+                else:
+                    n = 0
+
+            elif n == 2:
+                if m == "~":
+                    time += m
+                    n += 1
+                else:
+                    n = 0
+
+            elif n == 3:
+                if ":" in m:
+                    if int(time[:2]) > int(m[:2]):
+                        m = str(int(m[:2]) + 24) + m[2:]
+                    time += m
+                    for i in range(7):
+                        if temp[i]:
+                            opening_hour[i] = time
+                    temp = [False] * 7
+                    time = ""
+                    n = 0
+
+            elif n == 4:
+                time += m
+                n += 1
+
+            elif n == 5:
+                time += m
+                n += 1
+
+            elif n == 6:
+                time += m
+                for i in range(7):
+                    if temp[i]:
+                        break_time[i] = time
+                temp = [False] * 7
+                time = ""
+                n = 0
+
+        if '정보없음' in opening_hour and opening_hour.count('정보없음') != 7:
+            for i in range(7):
+                if opening_hour[i] == '정보없음':
+                    opening_hour[i] = '휴무일'
+                    break_time[i] = '휴무일'
+
+    if not opening_hour:
+        with open("영업시간.txt", "a") as file:
+            file.write(cnt + 1, store_name, ID)
+
+    return opening_hour, break_time
 
 
 ## 카카오 API
@@ -164,6 +296,7 @@ overlapped_result = overlapped_data(keyword, start_x, start_y, next_x, next_y, n
 # 최종 데이터가 담긴 리스트 중복값 제거
 results = list(map(dict, collections.OrderedDict.fromkeys(tuple(sorted(d.items())) for d in overlapped_result)))
 print("==========데이터 일단 가져옴==========================================================")
+print(len(results), "추리기 전엔")
 
 with open("메뉴.txt", "w") as file:
     file.write("\n")
@@ -190,8 +323,6 @@ for place in results:
         place_url = place['place_url']
         ID = place['id']
         full_category = place['category_name'].replace('>', '').split()
-        opening_hour = ['정보없음'] * 7
-        break_time = ['정보없음'] * 7
         rating = ""
 
         ## 카테고리 정리하기
@@ -203,126 +334,22 @@ for place in results:
                 file.write("}\n")
 
             if len(full_category) == 2:
-                category_2nd = category_keys.index(full_category[1])+1
+                category_2nd = select_2nd(full_category[1])
             else:
                 if full_category[2] in category_dict[full_category[1]]:
-                    category_2nd = category_sum[category_keys.index(full_category[1])] + category_dict[full_category[1]].index(full_category[2]) + 1
+                    category_2nd = select_2nd(full_category[2])
                 else:
-                    category_2nd = category_keys.index(full_category[1])+1
-"""
-            if cnt <= 193: ## break_point
+                    category_2nd = select_2nd(full_category[1])
+            
+            print(cnt+1)
+            if cnt <3526: ## break_point
                 cnt += 1
                 continue
-"""
+            
             driver.get(place_url)
             driver.implicitly_wait(5)
 
-            try:
-                opening = driver.find_element(By.CSS_SELECTOR, ".list_operation").text.split()
-            except:
-                print(store_name, "정보가 없는건지 못불러온건지")
-                opening = []
-
-            if "더보기" in opening:
-                try:
-                    more_btn = driver.find_element(By.CSS_SELECTOR, ".btn_more").click()
-                    driver.implicitly_wait(3)
-                except:
-                    print("클릭 오류")
-                    opening = []
-
-                try:
-                    opening = driver.find_element(By.CSS_SELECTOR, ".fold_floor").text.split()
-                except:
-                    print("오류다")
-                    opening = []
-
-            if opening:
-                if '영업시간' in opening:
-                    opening.remove('영업시간')
-                if '닫기' in opening:
-                    opening.remove('닫기')
-
-                temp = [False] * 7
-                time = ""
-
-                n = 0
-                for m in opening:
-                    if n == 0:
-                        if m == '매일':
-                            temp = [True] * 7
-                        elif '~' in m and m[0] in ref_day:
-                            start = ref_day.index(m[0])
-                            end = ref_day.index(m[2])
-                            for i in range(start, end + 1):
-                                temp[i] = True
-                        elif ',' in m and m[0] in ref_day:
-                            curr = m.split(",")
-                            for c in curr:
-                                idx = ref_day.index(c)
-                                temp[idx] = True
-                        elif m in ref_day:
-                            idx = ref_day.index(m)
-                            temp[idx] = True
-                        else:
-                            continue
-                        n += 1
-
-                    elif n == 1:
-                        if ":" in m:
-                            time += m
-                            n += 1
-                        elif m == "브레이크타임":
-                            n = 4
-                        else:
-                            n = 0
-
-                    elif n == 2:
-                        if m == "~":
-                            time += m
-                            n += 1
-                        else:
-                            n = 0
-
-                    elif n == 3:
-                        if ":" in m:
-                            if int(time[:2]) > int(m[:2]):
-                                m = str(int(m[:2]) + 24) + m[2:]
-                            time += m
-                            for i in range(7):
-                                if temp[i]:
-                                    opening_hour[i] = time
-                            temp = [False] * 7
-                            time = ""
-                            n = 0
-
-                    elif n == 4:
-                        time += m
-                        n += 1
-
-                    elif n == 5:
-                        time += m
-                        n += 1
-
-                    elif n == 6:
-                        time += m
-                        for i in range(7):
-                            if temp[i]:
-                                break_time[i] = time
-                        temp = [False] * 7
-                        time = ""
-                        n = 0
-
-                if '정보없음' in opening_hour and opening_hour.count('정보없음') != 7:
-                    for i in range(7):
-                        if opening_hour[i] == '정보없음':
-                            opening_hour[i] = '휴무일'
-                            break_time[i] = '휴무일'
-
-
-            if not opening_hour:
-                with open("영업시간.txt", "a") as file:
-                    file.write(cnt+1, store_name, ID)
+            opening_hour, break_time = opening_search(driver)
 
 
             ## db에 추가
@@ -333,10 +360,10 @@ for place in results:
 
             ## 별점 가져오기 + db에 추가
             try:
-                rating = driver.find_element(By.CSS_SELECTOR, ".link_evaluation>span").text
+                rating = float(driver.find_element(By.CSS_SELECTOR, ".link_evaluation>span").text)
             except:
                 print(store_name, "별점 못가져온듯")
-                with open("별점.txt", a) as file:
+                with open("별점.txt", "a") as file:
                     file.write(str(cnt) + " " + store_name + " " + str(ID) + "\n")
 
             insert_others(cnt, rating)
@@ -345,7 +372,7 @@ for place in results:
             ## 메뉴 목록 긁어오기
             try:
                 lst = driver.find_elements(By.CSS_SELECTOR, ".loss_word")
-                with open("메뉴.txt", a) as file:
+                with open("메뉴.txt", "a") as file:
                     for l in lst:
                         file.write(l.text + "\n")
             except:
