@@ -22,6 +22,24 @@ except:
     print("설치 완료")
 
 
+## store_no 찾아오기
+def select_store_no(store_name, store_road_address):
+    conn = cx_Oracle.connect("lunchwb", "lunchwb", "localhost:1521/xe")
+    cs = conn.cursor()
+
+    sql = "SELECT store_no FROM store WHERE store_name = :store_name AND store_road_address = :store_road_address"
+    rs = cs.execute(sql, store_name=store_name, store_road_address=store_road_address)
+
+    result = 0
+    for r in rs:
+        result = r[0]
+
+    cs.close()
+    conn.close()
+
+    return int(result)
+
+
 ## store 테이블 추가 함수
 def insert_store(cate_2nd, store_name, store_x, store_y, store_road, store_old, store_opening, break_time):
     conn = cx_Oracle.connect("lunchwb", "lunchwb", "localhost:1521/xe")
@@ -30,6 +48,20 @@ def insert_store(cate_2nd, store_name, store_x, store_y, store_road, store_old, 
     sql = "INSERT INTO store VALUES(seq_store_no.nextval, :cate_2nd, :store_name, :store_x, :store_y, :store_road, :store_old, :store_opening, :break_time, :visit)"
 
     cs.execute(sql, cate_2nd=cate_2nd, store_name=store_name, store_x=store_x, store_y=store_y, store_road=store_road, store_old=store_old, store_opening=store_opening, break_time=break_time, visit=0)
+    conn.commit()
+
+    cs.close()
+    conn.close()
+
+
+## store 영업시간 다시 추가
+def update_store(store_no, store_opening_hours, store_breaktime):
+    conn = cx_Oracle.connect("lunchwb", "lunchwb", "localhost:1521/xe")
+    cs = conn.cursor()
+
+    sql = "UPDATE store SET store_opening_hours = :store_opening_hours, store_breaktime = :store_breaktime WHERE store_no = :store_no"
+
+    cs.execute(sql, store_opening_hours=store_opening_hours, store_breaktime=store_breaktime, store_no=store_no)
     conn.commit()
 
     cs.close()
@@ -58,6 +90,20 @@ def insert_others(store_no, rating_kakao):
     sql = "INSERT INTO rating_others VALUES(:store_no, 0, :rating_kakao, 0)"
 
     cs.execute(sql, store_no=store_no, rating_kakao=rating_kakao)
+    conn.commit()
+
+    cs.close()
+    conn.close()
+
+
+## rating_others 별점 다시 추가
+def update_others(store_no, rating_kakao):
+    conn = cx_Oracle.connect("lunchwb", "lunchwb", "localhost:1521/xe")
+    cs = conn.cursor()
+
+    sql = "UPDATE rating_others SET rating_kakao = :rating_kakao WHERE store_no = :store_no"
+
+    cs.execute(sql, rating_kakao=rating_kakao, store_no=store_no)
     conn.commit()
 
     cs.close()
@@ -155,7 +201,7 @@ def opening_search(driver):
                     end = ref_day.index(m[2])
                     for i in range(start, end + 1):
                         temp[i] = True
-                elif ',' in m and m[0] in ref_day:
+                elif ',' in m and (not '공휴일' in m) and (not '브레이크' in m) and m[0] in ref_day:
                     curr = m.split(",")
                     for c in curr:
                         idx = ref_day.index(c[0])
@@ -298,6 +344,7 @@ results = list(map(dict, collections.OrderedDict.fromkeys(tuple(sorted(d.items()
 print("==========데이터 일단 가져옴==========================================================")
 print(len(results), "추리기 전엔")
 
+"""
 with open("메뉴.txt", "w") as file:
     file.write("\n")
 
@@ -309,6 +356,7 @@ with open("영업시간.txt", "w") as file:
 
 with open("크롤링데이터.txt", "w") as file:
     file.write("\n")
+"""
 
 cnt = 0
 
@@ -327,7 +375,7 @@ for place in results:
 
         ## 카테고리 정리하기
         if len(full_category) >= 2 and full_category[1] in list(category_keys):
-            with open("크롤링데이터.txt", "a") as file:
+            """with open("크롤링데이터.txt", "a") as file:
                 file.write(str(cnt + 1) + " {")
                 for key in place.keys():
                     file.write(str(key) + ": " + str(place[key]) + "  ")
@@ -339,10 +387,10 @@ for place in results:
                 if full_category[2] in category_dict[full_category[1]]:
                     category_2nd = select_2nd(full_category[2])
                 else:
-                    category_2nd = select_2nd(full_category[1])
-            
-            print(cnt+1)
-            if cnt <3526: ## break_point
+                    category_2nd = select_2nd(full_category[1])"""
+
+            print(store_name, cnt+1)
+            if cnt < 3300: ## break_point
                 cnt += 1
                 continue
             
@@ -351,11 +399,18 @@ for place in results:
 
             opening_hour, break_time = opening_search(driver)
 
-
             ## db에 추가
             cnt += 1
+            """
             insert_store(category_2nd, store_name, X, Y, road_address, address_name, arr_change(opening_hour), arr_change(break_time))
-            insert_bujang(cnt)
+            insert_bujang(cnt)"""
+
+            store_no = select_store_no(store_name, road_address)
+            if store_no == 0:
+                continue
+
+            if opening_hour != ['정보없음'] * 7:
+                update_store(store_no, arr_change(opening_hour), arr_change(break_time))
 
 
             ## 별점 가져오기 + db에 추가
@@ -366,7 +421,8 @@ for place in results:
                 with open("별점.txt", "a") as file:
                     file.write(str(cnt) + " " + store_name + " " + str(ID) + "\n")
 
-            insert_others(cnt, rating)
+            if rating != 0:
+                update_others(store_no, rating)
 
 
             ## 메뉴 목록 긁어오기
