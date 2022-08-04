@@ -469,7 +469,7 @@ for place in results:
                 lst = driver.find_elements(By.CSS_SELECTOR, ".loss_word")
                 with open("메뉴.txt", "a") as file:
                     for l in lst:
-                        file.write(str(select_1st(full_category[1])) + " " + str(category_2nd) + l.text + "\n")
+                        file.write(str(select_1st(full_category[1])) + " " + str(category_2nd) + " " + l.text + "\n")
             except:
                 print("메뉴 못불러옴")
             """
