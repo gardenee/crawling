@@ -26,7 +26,7 @@ def select():
     conn = cx_Oracle.connect("lunchwb", "lunchwb", "localhost:1521/xe")
     cs = conn.cursor()
 
-    sql = "SELECT store_no, store_name, store_road_address FROM store"
+    sql = "SELECT store_no, store_name, store_road_address FROM store ORDER BY store_no ASC"
 
     rs = cs.execute(sql)
 
@@ -58,38 +58,42 @@ except:
 
 ## 크롤링하기
 store_lst = select()
-for store in store_lst[:]:
+for store in store_lst[8:]:
     store_no = store[0]
     store_name = store[1]
     store_address = store[2]
     rating = 0
 
-    print(store_no, store_name, store_address, end="")
+    print(store_no, store_name, store_address, end=" ")
 
     driver.get(url="https://map.naver.com/v5/")
     driver.implicitly_wait(5)
 
-    try:
+    try: ## 검색해서 바로 가게가 나오는 경우
         search_bar = driver.find_element(By.CSS_SELECTOR, ".input_search")
         search_bar.click()
         search_bar.send_keys(store_name)
         search_bar.send_keys(Keys.ENTER)
-        driver.implicitly_wait(5)
+        driver.implicitly_wait(10)
 
         frame = driver.find_element(By.CSS_SELECTOR, "#entryIframe")
         driver.switch_to.frame(frame)
         driver.implicitly_wait(5)
 
         soup = bs4.BeautifulSoup(driver.page_source, "html.parser")
-        rating = float(soup.select_one("._20Ivz > span > em").text)
 
-    except NoSuchElementException:
+        try:
+            rating = float(soup.select_one("._20Ivz > span > em").text)
+        except:
+            print("별점미공개", end=" ")
+
+    except NoSuchElementException: ## 가게 목록에서 찾아야 하는 경우
         try:
             search_bar = driver.find_element(By.CSS_SELECTOR, ".input_search")
             search_bar.click()
             search_bar.send_keys(store_name)
             search_bar.send_keys(Keys.ENTER)
-            driver.implicitly_wait(5)
+            driver.implicitly_wait(10)
 
             driver.switch_to.default_content()
             frame = driver.find_element(By.CSS_SELECTOR, "#searchIframe")
@@ -97,19 +101,20 @@ for store in store_lst[:]:
             driver.implicitly_wait(5)
             body = driver.find_element(By.CSS_SELECTOR, "body")
             body.click()
+
+            # 스크롤 내리기
             try:
                 for i in range(5):
                     body.send_keys(Keys.PAGE_DOWN)
             except:
-                print("스크롤 끝")
+                print("스크롤끝", end=" ")
 
-            driver.implicitly_wait(5)
+            driver.implicitly_wait(10)
 
             results = driver.find_elements(By.CSS_SELECTOR, "li ._3ZU00 ._2w9xx ._2s4DU .place_bluelink")
 
             i = 0
             for result in results:
-                print(6+i)
                 i += 1
                 if i > 15:
                     break
@@ -124,7 +129,10 @@ for store in store_lst[:]:
 
                 address = driver.find_element(By.CSS_SELECTOR, "._6aUG7 ._1h3B_ ._2yqUQ").text
                 if address == store_address:
-                    rating = float(driver.find_element(By.CSS_SELECTOR, "._20Ivz > span > em").text)
+                    try:
+                        rating = float(driver.find_element(By.CSS_SELECTOR, "._20Ivz > span > em").text)
+                    except:
+                        print("별점미공개", end=" ")
                     break
 
                 driver.switch_to.default_content()
