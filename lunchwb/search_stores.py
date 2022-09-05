@@ -13,7 +13,7 @@ def whole_region(keyword, start_x, start_y, end_x, end_y):
     while (True):
         url = 'https://dapi.kakao.com/v2/local/search/keyword.json'
         params = {'query': keyword, 'page': page_num, 'rect': f'{start_x},{start_y},{end_x},{end_y}'}
-        headers = {"Authorization": "KakaoAK bde0ccb3c7c732a5380910cd2be9a535"}
+        headers = {"Authorization": "KakaoAK xxxxxxxxxxxxxxxxxxxxxxxxx"}
 
         resp = requests.get(url, params=params, headers=headers)
         search_count = resp.json()['meta']['total_count']
